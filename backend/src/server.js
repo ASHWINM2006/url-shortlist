@@ -12,7 +12,7 @@ const redirectRoute = require('./routes/redirect');
 
 const app = express();
 
-// Allow ALL origins (required for Vercel → Render)
+// Allow ALL origins (required for Vercel → Render) — v2
 app.use((req, res, next) => {
   res.header('Access-Control-Allow-Origin', '*');
   res.header('Access-Control-Allow-Methods', 'GET,PUT,POST,DELETE,PATCH,OPTIONS');
