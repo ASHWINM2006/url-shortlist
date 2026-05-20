@@ -2,7 +2,7 @@ services:
   - type: web
     name: linksnap-backend
     runtime: node
-    rootDir: url-shortener/backend
+    rootDir: backend
     buildCommand: npm install
     startCommand: node src/server.js
     envVars:

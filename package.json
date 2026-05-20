@@ -1,10 +1,7 @@
 {
   "name": "linksnap-root",
   "version": "1.0.0",
-  "scripts": {
-    "start": "node url-shortener/backend/src/server.js",
-    "build": "cd url-shortener/backend && npm install"
-  },
+  "private": true,
   "engines": {
     "node": ">=18.0.0"
   }
