@@ -28,17 +28,10 @@ const authLimiter = rateLimit({
 
 // Middleware
 app.use(cors({
-  origin: function (origin, callback) {
-    // Allow requests with no origin (mobile apps, curl, etc.)
-    if (!origin) return callback(null, true);
-    const allowed = (process.env.FRONTEND_URL || '').split(',').map(u => u.trim());
-    // In development allow localhost
-    if (process.env.NODE_ENV !== 'production') return callback(null, true);
-    if (allowed.includes('*') || allowed.includes(origin)) return callback(null, true);
-    callback(null, true); // Allow all for now — restrict after you have final URLs
-  },
-  credentials: true
+  origin: '*',
+  credentials: false
 }));
+app.options('*', cors()); // Handle preflight for all routes
 app.use(express.json());
 app.use(limiter);
 
