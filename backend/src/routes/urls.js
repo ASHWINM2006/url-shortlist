@@ -1,18 +1,12 @@
 const express = require('express');
 const { body } = require('express-validator');
 const {
-  createUrl,
-  getUrls,
-  getUrl,
-  updateUrl,
-  deleteUrl,
-  getDashboardStats
+  createUrl, getUrls, getUrl, updateUrl,
+  deleteUrl, getDashboardStats, bulkCreateUrls
 } = require('../controllers/urlController');
 const { protect } = require('../middleware/auth');
 
 const router = express.Router();
-
-// All routes require authentication
 router.use(protect);
 
 const createUrlValidation = [
@@ -26,6 +20,7 @@ const createUrlValidation = [
 router.get('/stats/overview', getDashboardStats);
 router.get('/', getUrls);
 router.post('/', createUrlValidation, createUrl);
+router.post('/bulk', bulkCreateUrls);   // ← new bulk endpoint
 router.get('/:id', getUrl);
 router.put('/:id', updateUrl);
 router.delete('/:id', deleteUrl);

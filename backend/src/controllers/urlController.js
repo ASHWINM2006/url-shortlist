@@ -146,7 +146,10 @@ const updateUrl = async (req, res) => {
 
     if (originalUrl) {
       try {
-        new URL(originalUrl);
+        const parsed = new URL(originalUrl);
+        if (!['http:', 'https:'].includes(parsed.protocol)) {
+          return res.status(400).json({ error: 'URL must start with http:// or https://' });
+        }
         url.originalUrl = originalUrl;
       } catch {
         return res.status(400).json({ error: 'Invalid URL format' });
@@ -210,15 +213,16 @@ const deleteUrl = async (req, res) => {
 const getDashboardStats = async (req, res) => {
   try {
     const userId = req.user._id;
+    const now = new Date();
 
-    const [totalUrls, totalClicks, recentUrls, topUrls] = await Promise.all([
+    const [totalUrls, clicksAgg, activeUrls, expiredUrls] = await Promise.all([
       Url.countDocuments({ user: userId }),
       Url.aggregate([
         { $match: { user: userId } },
         { $group: { _id: null, total: { $sum: '$totalClicks' } } }
       ]),
-      Url.find({ user: userId }).sort({ createdAt: -1 }).limit(5),
-      Url.find({ user: userId }).sort({ totalClicks: -1 }).limit(5)
+      Url.countDocuments({ user: userId, isActive: true }),
+      Url.countDocuments({ user: userId, expiresAt: { $lt: now } })
     ]);
 
     const baseUrl = process.env.BASE_URL;
@@ -226,21 +230,10 @@ const getDashboardStats = async (req, res) => {
     res.json({
       stats: {
         totalUrls,
-        totalClicks: totalClicks[0]?.total || 0,
-        activeUrls: await Url.countDocuments({ user: userId, isActive: true }),
-        expiredUrls: await Url.countDocuments({
-          user: userId,
-          expiresAt: { $lt: new Date() }
-        })
-      },
-      recentUrls: recentUrls.map(u => ({
-        ...u.toObject(),
-        shortUrl: `${baseUrl}/${u.shortCode}`
-      })),
-      topUrls: topUrls.map(u => ({
-        ...u.toObject(),
-        shortUrl: `${baseUrl}/${u.shortCode}`
-      }))
+        totalClicks: clicksAgg[0]?.total || 0,
+        activeUrls,
+        expiredUrls
+      }
     });
   } catch (error) {
     console.error('Dashboard stats error:', error);
@@ -248,4 +241,70 @@ const getDashboardStats = async (req, res) => {
   }
 };
 
-module.exports = { createUrl, getUrls, getUrl, updateUrl, deleteUrl, getDashboardStats };
+// @desc    Bulk create short URLs (up to 20 at once)
+// @route   POST /api/urls/bulk
+const bulkCreateUrls = async (req, res) => {
+  try {
+    const { urls } = req.body;
+
+    if (!Array.isArray(urls) || urls.length === 0) {
+      return res.status(400).json({ error: 'urls must be a non-empty array' });
+    }
+    if (urls.length > 20) {
+      return res.status(400).json({ error: 'Maximum 20 URLs allowed per bulk request' });
+    }
+
+    const baseUrl = process.env.BASE_URL;
+
+    // Process all URLs concurrently for speed
+    const settled = await Promise.allSettled(
+      urls.map(async (item, i) => {
+        const originalUrl = (item.originalUrl || item).trim();
+
+        // Validate URL
+        try {
+          const u = new URL(originalUrl);
+          if (!['http:', 'https:'].includes(u.protocol)) {
+            return { index: i, originalUrl, success: false, error: 'URL must start with http:// or https://' };
+          }
+        } catch {
+          return { index: i, originalUrl, success: false, error: 'Invalid URL format' };
+        }
+
+        const shortCode = await generateUniqueShortCode();
+        const url = await Url.create({
+          user: req.user._id,
+          originalUrl,
+          shortCode,
+          title: item.title || null,
+          customAlias: null,
+        });
+        return {
+          index: i, originalUrl, success: true,
+          shortCode, shortUrl: `${baseUrl}/${shortCode}`,
+          _id: url._id, createdAt: url.createdAt
+        };
+      })
+    );
+
+    const results = settled.map((s, i) =>
+      s.status === 'fulfilled'
+        ? s.value
+        : { index: i, originalUrl: (urls[i]?.originalUrl || urls[i] || ''), success: false, error: 'Failed to create short URL' }
+    );
+
+    const succeeded = results.filter(r => r.success).length;
+    const failed = results.filter(r => !r.success).length;
+
+    res.status(201).json({
+      message: `${succeeded} URLs shortened successfully${failed > 0 ? `, ${failed} failed` : ''}`,
+      results,
+      summary: { total: urls.length, succeeded, failed }
+    });
+  } catch (error) {
+    console.error('Bulk create error:', error);
+    res.status(500).json({ error: 'Server error during bulk creation' });
+  }
+};
+
+module.exports = { createUrl, getUrls, getUrl, updateUrl, deleteUrl, getDashboardStats, bulkCreateUrls };

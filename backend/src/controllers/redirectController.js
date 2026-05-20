@@ -8,8 +8,9 @@ const redirect = async (req, res) => {
   try {
     const { shortCode } = req.params;
 
-    // Skip API routes and static files
-    if (shortCode.startsWith('api') || shortCode === 'favicon.ico') {
+    // Skip API routes and static files — check exact prefixes to avoid blocking valid aliases
+    const skipPaths = ['api', 'favicon.ico', 'robots.txt', 'sitemap.xml'];
+    if (skipPaths.includes(shortCode) || shortCode.startsWith('api/')) {
       return res.status(404).json({ error: 'Not found' });
     }
 
@@ -59,8 +60,9 @@ const redirect = async (req, res) => {
       }
     });
 
-    // Redirect to original URL
-    res.redirect(301, url.originalUrl);
+    // Redirect to original URL — use 302 (temporary) so browsers don't cache
+    // This ensures edited destination URLs always work correctly
+    res.redirect(302, url.originalUrl);
   } catch (error) {
     console.error('Redirect error:', error);
     res.redirect(`${process.env.FRONTEND_URL}/error`);

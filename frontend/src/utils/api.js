@@ -41,12 +41,13 @@ export const authAPI = {
 };
 
 export const urlAPI = {
-  create:   (data)   => api.post('/urls', data),
-  getAll:   (params) => api.get('/urls', { params }),
-  getOne:   (id)     => api.get(`/urls/${id}`),
-  update:   (id, data) => api.put(`/urls/${id}`, data),
-  delete:   (id)     => api.delete(`/urls/${id}`),
-  getStats: ()       => api.get('/urls/stats/overview')
+  create:      (data)   => api.post('/urls', data),
+  createBulk:  (urls)   => api.post('/urls/bulk', { urls }),
+  getAll:      (params) => api.get('/urls', { params }),
+  getOne:      (id)     => api.get(`/urls/${id}`),
+  update:      (id, data) => api.put(`/urls/${id}`, data),
+  delete:      (id)     => api.delete(`/urls/${id}`),
+  getStats:    ()       => api.get('/urls/stats/overview')
 };
 
 export const analyticsAPI = {

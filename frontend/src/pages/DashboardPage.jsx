@@ -25,7 +25,7 @@ import {
 } from 'recharts';
 
 /* ─── tiny hooks ─────────────────────────────────────────── */
-const useNow = (ms = 30000) => {
+const useNow = (ms = 10000) => {
   const [now, setNow] = useState(Date.now());
   useEffect(() => { const id = setInterval(() => setNow(Date.now()), ms); return () => clearInterval(id); }, [ms]);
   return now;
@@ -249,21 +249,27 @@ const UrlRow = ({ url, onDelete, onEdit, onQR, onToggle, toggling, now }) => {
           </p>
         </div>
 
-        {/* Stats */}
-        <div className="hidden md:flex items-center gap-5 shrink-0">
-          <div className="text-center">
-            <div className="text-sm font-black" style={{ color: '#a78bfa' }}>{url.totalClicks ?? 0}</div>
-            <div className="text-xs" style={{ color: '#475569' }}>clicks</div>
+        {/* Stats — inline badges */}
+        <div className="hidden md:flex items-center gap-3 shrink-0">
+          <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl"
+            style={{ background: 'rgba(167,139,250,0.1)', border: '1px solid rgba(167,139,250,0.15)' }}>
+            <MousePointerClick size={12} style={{ color: '#a78bfa' }} />
+            <span className="text-sm font-black" style={{ color: '#a78bfa' }}>{url.totalClicks ?? 0}</span>
+            <span className="text-xs" style={{ color: 'var(--text-muted)' }}>clicks</span>
           </div>
-          <div className="text-center">
-            <div className="text-xs font-medium" style={{ color: '#94a3b8' }}>
-              {url.lastVisited ? formatRelativeTime(url.lastVisited) : 'Never'}
-            </div>
-            <div className="text-xs" style={{ color: '#475569' }}>last visit</div>
+          <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl"
+            style={{ background: 'rgba(96,165,250,0.08)', border: '1px solid rgba(96,165,250,0.12)' }}>
+            <Clock size={12} style={{ color: '#60a5fa' }} />
+            <span className="text-xs font-medium" style={{ color: 'var(--text-secondary)' }}>
+              {url.lastVisited ? formatRelativeTime(url.lastVisited) : 'Never visited'}
+            </span>
           </div>
-          <div className="text-center">
-            <div className="text-xs font-medium" style={{ color: '#94a3b8' }}>{formatDate(url.createdAt)}</div>
-            <div className="text-xs" style={{ color: '#475569' }}>created</div>
+          <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl"
+            style={{ background: 'rgba(74,222,128,0.08)', border: '1px solid rgba(74,222,128,0.12)' }}>
+            <Calendar size={12} style={{ color: '#4ade80' }} />
+            <span className="text-xs font-medium" style={{ color: 'var(--text-secondary)' }}>
+              {formatDate(url.createdAt)}
+            </span>
           </div>
         </div>
 
@@ -353,12 +359,26 @@ export default function DashboardPage() {
   useEffect(() => { fetchUrls(); }, [fetchUrls]);
   useEffect(() => { fetchStats(); }, [fetchStats]);
 
-  // Auto-refresh every 30s
+  // Auto-refresh every 10s silently
   useEffect(() => {
     const id = setInterval(() => {
       fetchUrls(true); fetchStats(true); setLastRefreshed(new Date());
-    }, 30000);
+    }, 10000);
     return () => clearInterval(id);
+  }, [fetchUrls, fetchStats]);
+
+  // Refresh immediately when user returns to this tab
+  // (catches clicks on short links that open in new tab)
+  useEffect(() => {
+    const handleVisibility = () => {
+      if (document.visibilityState === 'visible') {
+        fetchUrls(true);
+        fetchStats(true);
+        setLastRefreshed(new Date());
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibility);
+    return () => document.removeEventListener('visibilitychange', handleVisibility);
   }, [fetchUrls, fetchStats]);
 
   // Debounced search
@@ -375,7 +395,7 @@ export default function DashboardPage() {
     toast.success('Refreshed');
   };
 
-  const handleCreated = (u) => { setUrls(p => [u, ...p]); fetchStats(true); setLastRefreshed(new Date()); };
+  const handleCreated = () => { fetchUrls(true); fetchStats(true); setLastRefreshed(new Date()); };
   const handleUpdated = (u) => setUrls(p => p.map(x => x._id === u._id ? { ...x, ...u } : x));
 
   const handleDelete = async () => {
@@ -539,8 +559,8 @@ export default function DashboardPage() {
 
           {/* Last refreshed */}
           {lastRefreshed && (
-            <p className="text-xs mb-3" style={{ color: '#334155' }}>
-              Auto-refreshes every 30s · Last updated {formatRelativeTime(lastRefreshed)}
+            <p className="text-xs mb-3" style={{ color: 'var(--text-faint)' }}>
+              Auto-refreshes every 10s · Last updated {formatRelativeTime(lastRefreshed)}
             </p>
           )}
 
