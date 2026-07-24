@@ -36,8 +36,14 @@ app.get('/api/health', (req, res) => {
 
 // Connect to MongoDB and start server
 const PORT = process.env.PORT || 5000;
+const mongoUri = process.env.MONGODB_URI;
 
-mongoose.connect(process.env.MONGODB_URI)
+if (!mongoUri) {
+  console.error('❌ Missing required environment variable: MONGODB_URI');
+  process.exit(1);
+}
+
+mongoose.connect(mongoUri)
   .then(() => {
     console.log('✅ Connected to MongoDB');
     app.listen(PORT, () => {
